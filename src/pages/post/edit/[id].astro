@@ -1,0 +1,120 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import Button from '@/components/ui/button.astro';
+import { db } from '@/db';
+import { posts } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import fs from 'fs/promises';
+import path from 'path';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/404');
+
+const isAuthenticated = Astro.cookies.has('auth');
+if (!isAuthenticated) return Astro.redirect('/login');
+
+const currentUserId = Astro.cookies.get('userId')?.value;
+const isAdmin = Astro.cookies.get('isAdmin')?.value === 'true';
+
+// Fetch existing post
+const postResults = await db.select().from(posts).where(eq(posts.id, parseInt(id)));
+const post = postResults[0];
+
+if (!post) return Astro.redirect('/404');
+
+// Security Check: Only author or admin can edit
+const isOwner = currentUserId && post.authorId && parseInt(currentUserId) === post.authorId;
+if (!isOwner && !isAdmin) {
+    return Astro.redirect('/');
+}
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const data = await Astro.request.formData();
+    const title = data.get('title') as string;
+    const excerpt = data.get('excerpt') as string;
+    const content = data.get('content') as string;
+    const imageFile = data.get('image') as File | null;
+
+    if (!title || !excerpt || !content) {
+      error = 'Title, excerpt, and content are required.';
+    } else {
+      let imagePath = post.image;
+      
+      // Handle new image upload
+      if (imageFile && imageFile.size > 0) {
+        const buffer = Buffer.from(await imageFile.arrayBuffer());
+        const ext = path.extname(imageFile.name) || '.jpg';
+        const filename = `${Date.now()}-${Math.round(Math.random() * 1000)}${ext}`;
+        await fs.mkdir('public/uploads', { recursive: true });
+        await fs.writeFile(`public/uploads/${filename}`, buffer);
+        imagePath = `/uploads/${filename}`;
+      }
+
+      // Update the post
+      await db.update(posts)
+        .set({
+          title,
+          excerpt,
+          content,
+          image: imagePath,
+        })
+        .where(eq(posts.id, parseInt(id)));
+
+      return Astro.redirect(`/blog/${post.slug}`);
+    }
+  } catch (e: any) {
+    const msg = e.message || '';
+    error = `Error: ${msg || 'An error occurred while updating the post.'}`;
+    console.error(e);
+  }
+}
+---
+
+<Layout title={`Edit Post | ${post.title}`}>
+    <div class="max-w-2xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div class="mb-8 flex items-center justify-between">
+            <h1 class="text-3xl font-bold text-white tracking-tight">Edit Post</h1>
+            <Button variant="ghost" as="a" href={`/blog/${post.slug}`} class="text-muted-foreground hover:text-white">
+                Cancel
+            </Button>
+        </div>
+        
+        {error && (
+            <div class="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
+                {error}
+            </div>
+        )}
+
+        <form method="POST" enctype="multipart/form-data" class="space-y-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 shadow-2xl">
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-white/90" for="title">Title</label>
+                <input type="text" id="title" name="title" value={post.title} class="w-full h-11 px-4 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all" required />
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-white/90" for="image">Cover Image (Leave empty to keep current)</label>
+                {post.image && <p class="text-xs text-muted-foreground mb-2">Current: {post.image}</p>}
+                <input type="file" id="image" name="image" accept="image/*" class="w-full h-11 px-4 py-2 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500" />
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-white/90" for="excerpt">Excerpt</label>
+                <textarea id="excerpt" name="excerpt" rows="2" class="w-full p-4 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all resize-none" required>{post.excerpt}</textarea>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-white/90" for="content">Content</label>
+                <textarea id="content" name="content" rows="10" class="w-full p-4 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all" required>{post.content}</textarea>
+            </div>
+            
+            <div class="pt-4 flex justify-end">
+                <Button type="submit" class="rounded-xl px-8 h-11 bg-blue-600 hover:bg-blue-500 text-white font-medium transition-all shadow-lg shadow-blue-500/20">
+                    Save Changes
+                </Button>
+            </div>
+        </form>
+    </div>
+</Layout>

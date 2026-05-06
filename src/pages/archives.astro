@@ -1,0 +1,46 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { db } from '@/db';
+import { posts } from '@/db/schema';
+import Button from '@/components/ui/button.astro';
+
+const allPosts = await db.select().from(posts).orderBy(posts.createdAt);
+allPosts.reverse();
+---
+
+<Layout title="Archives | Astro Blog">
+    <div class="max-w-3xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div class="space-y-4 text-center md:text-left">
+            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white pb-2">
+                All Archives
+            </h1>
+            <p class="text-lg text-muted-foreground">
+                Browse through all our historical blog posts.
+            </p>
+        </div>
+
+        <div class="space-y-4">
+            {allPosts.map((post) => (
+                <a href={`/blog/${post.slug}`} class="group flex flex-col sm:flex-row sm:items-center justify-between rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-5 shadow-sm transition-all hover:bg-white/10 hover:border-blue-500/30">
+                    <div class="flex flex-col">
+                        <h2 class="text-xl font-semibold text-white group-hover:text-blue-400 transition-colors">
+                            {post.title}
+                        </h2>
+                        <time class="text-sm text-muted-foreground mt-1" datetime={new Date(post.createdAt).toISOString()}>
+                            {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </time>
+                    </div>
+                    <div class="mt-4 sm:mt-0 flex items-center text-sm font-medium text-blue-500 shrink-0">
+                        Read
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </div>
+                </a>
+            ))}
+            {allPosts.length === 0 && (
+                <div class="text-center py-10 text-muted-foreground">
+                    No posts found.
+                </div>
+            )}
+        </div>
+    </div>
+</Layout>

@@ -1,0 +1,200 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { db } from '@/db';
+import { posts, users, comments } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import Button from '@/components/ui/button.astro';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/404');
+
+const results = await db
+  .select({
+    id: posts.id,
+    title: posts.title,
+    slug: posts.slug,
+    content: posts.content,
+    image: posts.image,
+    authorId: posts.authorId,
+    createdAt: posts.createdAt,
+    username: users.username,
+  })
+  .from(posts)
+  .leftJoin(users, eq(posts.authorId, users.id))
+  .where(eq(posts.slug, slug));
+
+const post = results[0];
+if (!post) return Astro.redirect('/404');
+
+const postComments = await db
+  .select()
+  .from(comments)
+  .where(eq(comments.postId, post.id))
+  .orderBy(comments.createdAt);
+
+const currentUserId = Astro.cookies.get('userId')?.value;
+const currentUsername = Astro.cookies.get('username')?.value;
+const isAdmin = Astro.cookies.get('isAdmin')?.value === 'true';
+const isAuthenticated = Astro.cookies.has('auth');
+const isOwner = currentUserId && post.authorId && parseInt(currentUserId) === post.authorId;
+const canDeletePost = isOwner || isAdmin;
+
+// Admin username set (for badge display in comments)
+const ADMIN_USERNAME = 'Admin';
+---
+
+<Layout title={`${post.title} | Astro Blog`}>
+    <article class="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <!-- Back + Title -->
+        <div class="mb-10">
+            <Button variant="ghost" as="a" href="/" class="mb-8 -ml-4 text-muted-foreground hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4"><path d="m15 18-6-6 6-6"/></svg>
+                Back to posts
+            </Button>
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6 text-transparent bg-clip-text bg-gradient-to-br from-white to-white/60">
+                {post.title}
+            </h1>
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                    <div class="flex items-center gap-2">
+                        <div class="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white font-bold text-xs">
+                            {(post.username ?? 'A').charAt(0).toUpperCase()}
+                        </div>
+                        <span class="font-medium text-white/80">{post.username ?? 'Anonymous'}</span>
+                        {post.username === ADMIN_USERNAME && (
+                            <span title="Verified Admin" class="inline-flex items-center justify-center h-4 w-4 rounded-full bg-blue-500" aria-label="Admin">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" class="h-2.5 w-2.5"><path fill-rule="evenodd" d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z" clip-rule="evenodd"/></svg>
+                            </span>
+                        )}
+                    </div>
+                    <span class="text-white/20">·</span>
+                    <time datetime={new Date(post.createdAt).toISOString()}>
+                        {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </time>
+                </div>
+                <div class="flex items-center gap-3">
+                    {canDeletePost && (
+                        <Button variant="outline" as="a" href={`/post/edit/${post.id}`} class="rounded-full px-4 text-xs border-white/10 hover:bg-white/10">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5 h-3.5 w-3.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit Post
+                        </Button>
+                    )}
+                    {canDeletePost && (
+                        <form method="POST" action="/api/delete-post" data-confirm data-confirm-title="Delete this post?" data-confirm-message="This action is permanent and cannot be undone.">
+                            <input type="hidden" name="postId" value={String(post.id)} />
+                            <Button variant="destructive" size="sm" type="submit" class="rounded-full px-4 text-xs">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5 h-3.5 w-3.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                Delete Post
+                            </Button>
+                        </form>
+                    )}
+                </div>
+            </div>
+        </div>
+
+        <!-- Cover image -->
+        {post.image && (
+            <div class="mb-10 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                <img src={post.image} alt={post.title} class="w-full h-auto object-cover max-h-[500px]" />
+            </div>
+        )}
+
+        <!-- Content -->
+        <div class="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 md:p-12 shadow-2xl text-white/90 leading-relaxed text-lg whitespace-pre-wrap">
+            {post.content}
+        </div>
+
+        <!-- Comments Section -->
+        <section id="comments" class="mt-16 space-y-8">
+            <h2 class="text-2xl font-bold text-white tracking-tight">
+                Comments <span class="text-muted-foreground font-normal text-base">({postComments.length})</span>
+            </h2>
+
+            <!-- Comment list -->
+            {postComments.length === 0 && (
+                <p class="text-muted-foreground text-sm py-4">No comments yet. Be the first to share your thoughts!</p>
+            )}
+
+            <div class="space-y-4">
+                {postComments.map((comment) => {
+                    const isCommentByAdmin = comment.username === ADMIN_USERNAME;
+                    const canDeleteComment = isAdmin || (currentUserId && comment.authorId && parseInt(currentUserId) === comment.authorId);
+                    return (
+                        <div class="group rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-5 transition-all hover:border-white/20">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-white font-bold text-sm ${isCommentByAdmin ? 'bg-gradient-to-br from-blue-500 to-violet-600' : 'bg-gradient-to-br from-slate-600 to-slate-700'}`}>
+                                        {comment.username.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div class="flex items-center gap-1.5 min-w-0">
+                                        <span class={`font-semibold text-sm truncate ${isCommentByAdmin ? 'text-blue-400' : 'text-white/90'}`}>
+                                            {comment.username}
+                                        </span>
+                                        {isCommentByAdmin && (
+                                            <span title="Admin" class="inline-flex shrink-0 items-center justify-center h-4 w-4 rounded-full bg-blue-500" aria-label="Admin">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" class="h-2.5 w-2.5"><path fill-rule="evenodd" d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z" clip-rule="evenodd"/></svg>
+                                            </span>
+                                        )}
+                                        <span class="text-xs text-muted-foreground shrink-0">
+                                            · {new Date(comment.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </span>
+                                    </div>
+                                </div>
+                                {canDeleteComment && (
+                                    <form method="POST" action="/api/delete-comment" class="shrink-0" data-confirm data-confirm-title="Delete this comment?" data-confirm-message="This comment will be permanently removed.">
+                                        <input type="hidden" name="commentId" value={String(comment.id)} />
+                                        <input type="hidden" name="postSlug" value={slug} />
+                                        <button type="submit" class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" title="Delete comment">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                            <p class="mt-3 text-sm text-white/75 leading-relaxed pl-11">{comment.content}</p>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <!-- Add Comment Form -->
+            {isAuthenticated ? (
+                <form method="POST" action="/api/add-comment" class="space-y-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-white font-bold text-sm ${isAdmin ? 'bg-gradient-to-br from-blue-500 to-violet-600' : 'bg-gradient-to-br from-slate-600 to-slate-700'}`}>
+                            {(currentUsername ?? 'A').charAt(0).toUpperCase()}
+                        </div>
+                        <span class="text-sm font-medium text-white/80">
+                            Commenting as <span class={isAdmin ? 'text-blue-400' : 'text-white'}>{currentUsername}</span>
+                            {isAdmin && (
+                                <span title="Admin" class="inline-flex ml-1 items-center justify-center h-4 w-4 rounded-full bg-blue-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" class="h-2.5 w-2.5"><path fill-rule="evenodd" d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z" clip-rule="evenodd"/></svg>
+                                </span>
+                            )}
+                        </span>
+                    </div>
+                    <input type="hidden" name="postId" value={String(post.id)} />
+                    <input type="hidden" name="postSlug" value={slug} />
+                    <textarea
+                        name="content"
+                        rows="3"
+                        required
+                        placeholder="Share your thoughts..."
+                        class="w-full p-4 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all resize-none text-sm"
+                    ></textarea>
+                    <div class="flex justify-end">
+                        <Button type="submit" size="sm" class="rounded-full px-6 bg-blue-600 hover:bg-blue-500 text-white font-medium transition-all shadow-lg shadow-blue-500/20">
+                            Post Comment
+                        </Button>
+                    </div>
+                </form>
+            ) : (
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+                    <p class="text-muted-foreground text-sm mb-4">Sign in to leave a comment.</p>
+                    <Button as="a" href="/login" size="sm" class="rounded-full px-6 bg-blue-600 hover:bg-blue-500 text-white font-medium transition-all">
+                        Sign In
+                    </Button>
+                </div>
+            )}
+        </section>
+    </article>
+</Layout>
