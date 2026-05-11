@@ -22,12 +22,12 @@ if (Astro.request.method === 'POST') {
       error = 'Password must be at least 8 characters.';
     } else {
       const passwordHash = await Bun.password.hash(password);
-      const inserted = await db.insert(users).output().values({
+      const inserted = await db.insert(users).values({
         username,
         email,
         passwordHash,
         createdAt: new Date(),
-      });
+      }).returning();
 
       const user = inserted[0];
       Astro.cookies.set('auth', 'true', { path: '/' });
