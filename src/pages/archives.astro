@@ -3,21 +3,54 @@ import Layout from '@/layouts/Layout.astro';
 import { db } from '@/db';
 import { posts } from '@/db/schema';
 import Button from '@/components/ui/button.astro';
+import Search from '@/components/Search.astro';
+import { like, or, desc } from 'drizzle-orm';
 
-const allPosts = await db.select().from(posts).orderBy(posts.createdAt);
-allPosts.reverse();
+const query = Astro.url.searchParams.get('q') || '';
+
+let allPosts;
+if (query) {
+    const searchPattern = `%${query}%`;
+    allPosts = await db.select()
+        .from(posts)
+        .where(
+            or(
+                like(posts.title, searchPattern),
+                like(posts.excerpt, searchPattern),
+                like(posts.content, searchPattern)
+            )
+        )
+        .orderBy(desc(posts.createdAt));
+} else {
+    allPosts = await db.select().from(posts).orderBy(desc(posts.createdAt));
+}
 ---
 
 <Layout title="Archives | Astro Blog">
     <div class="max-w-3xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div class="space-y-4 text-center md:text-left">
-            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white pb-2">
-                All Archives
-            </h1>
-            <p class="text-lg text-muted-foreground">
-                Browse through all our historical blog posts.
-            </p>
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div class="space-y-4">
+                    <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white pb-2">
+                        All Archives
+                    </h1>
+                    <p class="text-lg text-muted-foreground">
+                        Browse through all our historical blog posts.
+                    </p>
+                </div>
+            </div>
         </div>
+
+        {query && (
+            <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-2">
+                <p class="text-muted-foreground">
+                    Showing results for <span class="text-white font-semibold">"{query}"</span>
+                </p>
+                <a href="/archives" class="text-sm font-medium text-blue-500 hover:text-blue-400 transition-colors flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    Clear search
+                </a>
+            </div>
+        )}
 
         <div class="space-y-4">
             {allPosts.map((post) => (
@@ -37,8 +70,17 @@ allPosts.reverse();
                 </a>
             ))}
             {allPosts.length === 0 && (
-                <div class="text-center py-10 text-muted-foreground">
-                    No posts found.
+                <div class="py-20 text-center space-y-4 rounded-2xl border border-dashed border-white/10 bg-white/5">
+                    <div class="flex justify-center text-muted-foreground">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg>
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="text-xl font-semibold text-white">No posts found</h3>
+                        <p class="text-muted-foreground">Try adjusting your search or browse all archives.</p>
+                    </div>
+                    <Button as="a" href="/archives" variant="outline" class="mt-4 rounded-full">
+                        Clear Search
+                    </Button>
                 </div>
             )}
         </div>

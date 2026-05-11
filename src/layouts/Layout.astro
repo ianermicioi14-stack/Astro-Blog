@@ -1,6 +1,7 @@
 ---
 import '@/styles/global.css';
 import Button from '@/components/ui/button.astro';
+import Search from '@/components/Search.astro';
 
 interface Props {
 	title: string;
@@ -9,6 +10,7 @@ interface Props {
 const { title } = Astro.props;
 const isAuthenticated = Astro.cookies.has('auth');
 const email = Astro.cookies.get('email')?.value;
+const query = Astro.url.searchParams.get('q') || '';
 ---
 
 <!doctype html>
@@ -27,6 +29,9 @@ const email = Astro.cookies.get('email')?.value;
                 <a href="/" class="text-2xl font-bold tracking-tight text-white transition-all hover:opacity-80">
                     Astro<span class="text-blue-500">Blog</span>
                 </a>
+                <div class="hidden md:block flex-1 max-w-sm px-8">
+                    <Search query={query} placeholder="Search posts..." />
+                </div>
                 <nav class="flex items-center space-x-6">
                     <a href="/" class="text-sm font-medium text-muted-foreground hover:text-white transition-colors">Home</a>
                     {isAuthenticated ? (
