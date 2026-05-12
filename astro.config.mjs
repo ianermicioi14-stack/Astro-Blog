@@ -8,11 +8,11 @@ export default defineConfig({
   output: 'server',
   adapter: cloudflare({
     imageService: 'passthrough',
-    platformProxy: {
-      enabled: false,
-    },
   }),
   vite: {
     plugins: [tailwindcss()],
+    ssr: {
+      noExternal: ['drizzle-orm'],
+    },
   },
 });
