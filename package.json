@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "dependencies": {
     "@astrojs/check": "^0.9.9",
-    "@astrojs/cloudflare": "10",
+    "@astrojs/cloudflare": "12",
     "@astrojs/sitemap": "^3.7.2",
     "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/vite": "^4.3.0",
