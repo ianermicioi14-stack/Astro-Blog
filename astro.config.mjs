@@ -6,7 +6,10 @@ import cloudflare from '@astrojs/cloudflare';
 export default defineConfig({
   integrations: [sitemap()],
   output: 'server',
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    imageService: 'passthrough',
+    sessionKVBindingName: undefined,
+  }),
   vite: {
     plugins: [tailwindcss()],
   },
