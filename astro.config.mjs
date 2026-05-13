@@ -8,18 +8,12 @@ export default defineConfig({
   integrations: [sitemap()],
   output: 'server',
   adapter: cloudflare({
-    // Explicitly setting imageService to passthrough because Cloudflare 
-    // Workers do not support the default 'sharp' image service.
     imageService: 'passthrough',
-    // Ensure we are using the local runtime mode for development
     runtime: { mode: 'local' }
   }),
   vite: {
     plugins: [tailwindcss()],
-    // Some libraries have issues with SSR in Vite, 
-    // we can try to exclude them if needed.
-    ssr: {
-      external: ['@neondatabase/serverless']
-    }
+    // We removed the ssr.external setting because Cloudflare Workers 
+    // requires all non-built-in dependencies to be bundled.
   },
 });
