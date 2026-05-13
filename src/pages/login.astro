@@ -4,6 +4,7 @@ import Button from '@/components/ui/button.astro';
 import { db } from '@/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
 
 let error = '';
 
@@ -30,7 +31,7 @@ if (Astro.request.method === 'POST') {
       if (!user) {
         error = 'Invalid email or password.';
       } else {
-        const isValid = await Bun.password.verify(password, user.passwordHash);
+        const isValid = await bcrypt.compare(password, user.passwordHash);
         if (isValid) {
           Astro.cookies.set('auth', 'true', { path: '/' });
           Astro.cookies.set('email', email, { path: '/' });
