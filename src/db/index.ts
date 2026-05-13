@@ -2,17 +2,32 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
 
-const databaseUrl = import.meta.env?.DATABASE_URL || process?.env?.DATABASE_URL;
+let _db: any = null;
 
-if (!databaseUrl) {
-    // In production Cloudflare Workers, environment variables are often on the context,
-    // but Astro's cloudflare adapter should populate process.env if configured.
-    // We throw a more descriptive error.
-    throw new Error("DATABASE_URL is missing. Please set it in your Cloudflare dashboard or .env file.");
+function initDb() {
+    if (_db) return _db;
+
+    const databaseUrl = import.meta.env?.DATABASE_URL || process?.env?.DATABASE_URL;
+
+    console.log("Initializing database... URL present:", !!databaseUrl);
+
+    if (!databaseUrl) {
+        throw new Error("DATABASE_URL is missing. Please set it in your Cloudflare dashboard or .env file.");
+    }
+
+    const sql = neon(databaseUrl);
+    _db = drizzle(sql, { schema });
+    return _db;
 }
 
-const sql = neon(databaseUrl);
+// Export a proxy that initializes the database on the first property access.
+// This prevents the application from crashing on load if the environment variable is missing,
+// as long as the database isn't actually used during the GET request.
+export const db = new Proxy({} as any, {
+    get(_, prop) {
+        const instance = initDb();
+        return instance[prop];
+    }
+});
 
-export const db = drizzle(sql, { schema });
-
-console.log("⚡ Database initialized");
+console.log("⚡ Database module loaded (lazy-init ready)");

@@ -1,0 +1,20 @@
+---
+import bcrypt from 'bcryptjs';
+
+let hash = 'N/A';
+let error = 'NONE';
+
+try {
+    hash = await bcrypt.hash('test', 10);
+} catch (e: any) {
+    error = e.message || String(e);
+}
+---
+
+<html>
+<body>
+  <h1>Debug Bcrypt</h1>
+  <p>Hash: {hash}</p>
+  <p>Error: {error}</p>
+</body>
+</html>

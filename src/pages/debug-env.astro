@@ -1,0 +1,14 @@
+---
+const dbUrl = import.meta.env.DATABASE_URL || process.env.DATABASE_URL;
+const hasDbUrl = !!dbUrl;
+const dbUrlLength = dbUrl?.length || 0;
+---
+
+<html>
+<body>
+  <h1>Debug Env</h1>
+  <p>Has DATABASE_URL: {hasDbUrl ? 'YES' : 'NO'}</p>
+  <p>Length: {dbUrlLength}</p>
+  <p>Preview: {dbUrl ? dbUrl.substring(0, 20) + '...' : 'N/A'}</p>
+</body>
+</html>

@@ -5,6 +5,8 @@ import { db } from '@/db';
 import { users } from '@/db/schema';
 import bcrypt from 'bcryptjs';
 
+console.log("Signup page loading... Method:", Astro.request.method);
+
 let error = '';
 
 if (Astro.request.method === 'POST') {
@@ -15,6 +17,8 @@ if (Astro.request.method === 'POST') {
     const password = data.get('password') as string;
     const confirmPassword = data.get('confirmPassword') as string;
 
+    console.log('Signup attempt:', { username, email });
+
     if (!username || !email || !password || !confirmPassword) {
       error = 'All fields are required.';
     } else if (password !== confirmPassword) {
@@ -22,7 +26,10 @@ if (Astro.request.method === 'POST') {
     } else if (password.length < 8) {
       error = 'Password must be at least 8 characters.';
     } else {
+      console.log('Hashing password...');
       const passwordHash = await bcrypt.hash(password, 10);
+      
+      console.log('Inserting user into DB...');
       const inserted = await db.insert(users).values({
         username,
         email,
@@ -30,7 +37,13 @@ if (Astro.request.method === 'POST') {
         createdAt: new Date(),
       }).returning();
 
+      if (!inserted || inserted.length === 0) {
+        throw new Error('Failed to insert user: No data returned from database.');
+      }
+
       const user = inserted[0];
+      console.log('User created:', user.id);
+
       Astro.cookies.set('auth', 'true', { path: '/' });
       Astro.cookies.set('email', email, { path: '/' });
       Astro.cookies.set('username', user.username, { path: '/' });
@@ -40,8 +53,8 @@ if (Astro.request.method === 'POST') {
     }
   } catch (e: any) {
     console.error('SIGNUP ERROR:', e);
-    const msg = e.message || '';
-    if (msg.includes('UNIQUE KEY constraint') || msg.includes('duplicate key')) {
+    const msg = e.message || String(e);
+    if (msg.includes('UNIQUE KEY constraint') || msg.includes('duplicate key') || msg.includes('unique constraint')) {
       if (msg.toLowerCase().includes('email')) {
         error = 'An account with that email already exists.';
       } else {
