@@ -28,7 +28,11 @@ if (Astro.request.method === 'POST') {
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
       let imagePath = null;
-      // Image upload skipped for Cloudflare Workers compatibility
+      if (imageFile && imageFile.size > 0) {
+          const buffer = await imageFile.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          imagePath = `data:${imageFile.type};base64,${base64}`;
+      }
 
       await db.insert(posts).values({
         title,
@@ -74,7 +78,11 @@ if (Astro.request.method === 'POST') {
                 <input type="text" id="title" name="title" class="w-full h-11 px-4 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all" placeholder="My Awesome Post" required />
             </div>
 
-            {/* Image upload skipped for now */}
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-white/90" for="image">Cover Image</label>
+                <input type="file" id="image" name="image" accept="image/*" class="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-black/20 text-white file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 transition-all" />
+                <p class="text-[11px] text-muted-foreground">Upload a photo to be used as the blog post cover.</p>
+            </div>
 
             <div class="space-y-2">
                 <label class="text-sm font-medium text-white/90" for="excerpt">Excerpt</label>

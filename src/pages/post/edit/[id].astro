@@ -40,8 +40,13 @@ if (Astro.request.method === 'POST') {
     if (!title || !excerpt || !content) {
       error = 'Title, excerpt, and content are required.';
     } else {
-      // Image upload skipped for Cloudflare Workers compatibility
       let imagePath = post.image;
+      
+      if (imageFile && imageFile.size > 0) {
+          const buffer = await imageFile.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          imagePath = `data:${imageFile.type};base64,${base64}`;
+      }
 
       // Update the post
       await db.update(posts)
@@ -84,7 +89,10 @@ if (Astro.request.method === 'POST') {
                 <input type="text" id="title" name="title" value={post.title} class="w-full h-11 px-4 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all" required />
             </div>
 
-            {/* Image upload skipped for now */}
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-white/90" for="image">Cover Image (Leave empty to keep current)</label>
+                <input type="file" id="image" name="image" accept="image/*" class="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-black/20 text-white file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 transition-all" />
+            </div>
 
             <div class="space-y-2">
                 <label class="text-sm font-medium text-white/90" for="excerpt">Excerpt</label>
