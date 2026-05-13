@@ -4,8 +4,7 @@ import Button from '@/components/ui/button.astro';
 import { db } from '@/db';
 import { posts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import fs from 'fs/promises';
-import path from 'path';
+// fs and path removed for Cloudflare Workers compatibility
 
 const { id } = Astro.params;
 if (!id) return Astro.redirect('/404');
@@ -41,17 +40,8 @@ if (Astro.request.method === 'POST') {
     if (!title || !excerpt || !content) {
       error = 'Title, excerpt, and content are required.';
     } else {
+      // Image upload skipped for Cloudflare Workers compatibility
       let imagePath = post.image;
-      
-      // Handle new image upload
-      if (imageFile && imageFile.size > 0) {
-        const buffer = Buffer.from(await imageFile.arrayBuffer());
-        const ext = path.extname(imageFile.name) || '.jpg';
-        const filename = `${Date.now()}-${Math.round(Math.random() * 1000)}${ext}`;
-        await fs.mkdir('public/uploads', { recursive: true });
-        await fs.writeFile(`public/uploads/${filename}`, buffer);
-        imagePath = `/uploads/${filename}`;
-      }
 
       // Update the post
       await db.update(posts)
@@ -94,11 +84,7 @@ if (Astro.request.method === 'POST') {
                 <input type="text" id="title" name="title" value={post.title} class="w-full h-11 px-4 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all" required />
             </div>
 
-            <div class="space-y-2">
-                <label class="text-sm font-medium text-white/90" for="image">Cover Image (Leave empty to keep current)</label>
-                {post.image && <p class="text-xs text-muted-foreground mb-2">Current: {post.image}</p>}
-                <input type="file" id="image" name="image" accept="image/*" class="w-full h-11 px-4 py-2 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500" />
-            </div>
+            {/* Image upload skipped for now */}
 
             <div class="space-y-2">
                 <label class="text-sm font-medium text-white/90" for="excerpt">Excerpt</label>

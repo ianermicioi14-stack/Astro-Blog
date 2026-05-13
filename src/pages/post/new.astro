@@ -3,8 +3,7 @@ import Layout from '@/layouts/Layout.astro';
 import Button from '@/components/ui/button.astro';
 import { db } from '@/db';
 import { posts } from '@/db/schema';
-import fs from 'fs/promises';
-import path from 'path';
+// fs and path removed for Cloudflare Workers compatibility
 
 const isAuthenticated = Astro.cookies.has('auth');
 if (!isAuthenticated) {
@@ -29,14 +28,7 @@ if (Astro.request.method === 'POST') {
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
       let imagePath = null;
-      if (imageFile && imageFile.size > 0) {
-        const buffer = Buffer.from(await imageFile.arrayBuffer());
-        const ext = path.extname(imageFile.name) || '.jpg';
-        const filename = `${Date.now()}-${Math.round(Math.random() * 1000)}${ext}`;
-        await fs.mkdir('public/uploads', { recursive: true });
-        await fs.writeFile(`public/uploads/${filename}`, buffer);
-        imagePath = `/uploads/${filename}`;
-      }
+      // Image upload skipped for Cloudflare Workers compatibility
 
       await db.insert(posts).values({
         title,
@@ -82,10 +74,7 @@ if (Astro.request.method === 'POST') {
                 <input type="text" id="title" name="title" class="w-full h-11 px-4 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all" placeholder="My Awesome Post" required />
             </div>
 
-            <div class="space-y-2">
-                <label class="text-sm font-medium text-white/90" for="image">Cover Image (Optional)</label>
-                <input type="file" id="image" name="image" accept="image/*" class="w-full h-11 px-4 py-2 rounded-xl border border-white/10 bg-black/20 text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500" />
-            </div>
+            {/* Image upload skipped for now */}
 
             <div class="space-y-2">
                 <label class="text-sm font-medium text-white/90" for="excerpt">Excerpt</label>
